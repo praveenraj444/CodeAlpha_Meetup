@@ -50,8 +50,8 @@ It is a production-ready video conferencing platform that allows users to create
 
 | Service | URL |
 |---|---|
-| **Frontend** | https://meetup-frontend.onrender.com |
-| **Backend API** | https://meetup-backend.onrender.com |
+| **Frontend** | [https://meetup-frontend-q8aq.onrender.com](https://meetup-backend-9go3.onrender.com/) |
+| **Backend API** | [https://meetup-backend.onrender.com ](https://meetup-backend-9go3.onrender.com/)|
 
 > ⚠️ **Note:** Hosted on Render's free tier. First request may take **30-60 seconds** due to cold start.
 
