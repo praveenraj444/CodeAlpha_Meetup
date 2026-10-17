@@ -5,8 +5,10 @@ import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MonitorOff, PenTool,
   MessageSquare, PhoneOff, Copy, Check, Users, Loader2, AlertTriangle,
   Crown, UserX, Mic2, XOctagon, ScreenShareOff, Hand,
-  Smile, SmilePlus, Signal, UserCheck, UserX2, Clock, Lock, Unlock
+  Smile, SmilePlus, Signal, UserCheck, UserX2, Clock, Lock, Unlock,
+  Share2, QrCode, X
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import Chat from './Chat.jsx';
 import Whiteboard from './Whiteboard.jsx';
 import socket from "./socket.js";
@@ -105,6 +107,7 @@ export default function VideoRoom() {
   const [boardOpen, setBoardOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [showQR, setShowQR] = useState(false); // 👈 NEW
 
   const [hostId, setHostId] = useState(null);
   const [isHost, setIsHost] = useState(false);
@@ -113,7 +116,7 @@ export default function VideoRoom() {
   const [videoBlocked, setVideoBlocked] = useState(false);
   const [chatBlocked, setChatBlocked] = useState(false);
   const [screenShareBlocked, setScreenShareBlocked] = useState(false);
-  const [reactionsBlocked, setReactionsBlocked] = useState(false);   // 👈 NEW
+  const [reactionsBlocked, setReactionsBlocked] = useState(false);
   const [roomLocked, setRoomLocked] = useState(false);
 
   const [waiting, setWaiting] = useState(false);
@@ -133,12 +136,12 @@ export default function VideoRoom() {
   const isHostRef = useRef(isHost);
   const blockRef = useRef(screenShareBlocked);
   const sharingRef = useRef(sharing);
-  const reactionsBlockedRef = useRef(reactionsBlocked);   // 👈 NEW
+  const reactionsBlockedRef = useRef(reactionsBlocked);
 
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
   useEffect(() => { blockRef.current = screenShareBlocked; }, [screenShareBlocked]);
   useEffect(() => { sharingRef.current = sharing; }, [sharing]);
-  useEffect(() => { reactionsBlockedRef.current = reactionsBlocked; }, [reactionsBlocked]);   // 👈 NEW
+  useEffect(() => { reactionsBlockedRef.current = reactionsBlocked; }, [reactionsBlocked]);
 
   const stopShare = () => {
     const screenTrack = screenTrackRef.current;
@@ -186,7 +189,6 @@ export default function VideoRoom() {
   };
 
   const sendReaction = (emoji) => {
-    // 👈 NEW: Prevent guest reaction if blocked
     if (reactionsBlocked && !isHost) {
       setError('🚫 Host has blocked reactions');
       setTimeout(() => setError(''), 3000);
@@ -273,7 +275,7 @@ export default function VideoRoom() {
       setChatBlocked(!!cb);
       setVideoBlocked(!!vb);
       setScreenShareBlocked(!!sb);
-      setReactionsBlocked(!!rb);   // 👈 NEW
+      setReactionsBlocked(!!rb);
       if (wl) setWaitingList(wl);
       users.forEach((u) => {
         if (!peersRef.current[u.id]) {
@@ -328,11 +330,8 @@ export default function VideoRoom() {
 
     socket.on('chat-blocked', ({ blocked }) => setChatBlocked(!!blocked));
 
-    // 👈 NEW: reactions-blocked listener
     socket.on('reactions-blocked', ({ blocked }) => {
-      console.log('🔔 reactions-blocked received:', blocked);
       setReactionsBlocked(!!blocked);
-      // If blocked, close picker
       if (blocked) setShowReactionPicker(false);
     });
 
@@ -459,14 +458,47 @@ export default function VideoRoom() {
   const allowScreenShare = () => { if (!isHost) return; socket?.emit('host:allow-screenshare'); };
   const stopAllScreenShare = () => { if (!isHost) return; socket?.emit('host:stop-all-screenshare'); };
 
-  // 👈 NEW: reactions host controls
   const blockReactions = () => { if (!isHost) return; socket?.emit('host:block-reactions'); };
   const allowReactions = () => { if (!isHost) return; socket?.emit('host:allow-reactions'); };
 
   const endRoom = () => { if (!isHost) return; if (confirm('End room for everyone?')) socket?.emit('host:end-room'); };
   const leave = () => navigate('/');
+  
+  // 👈 NEW: Room ID Copy Function
   const copyId = async () => {
     try { await navigator.clipboard.writeText(roomId); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+  };
+
+  // 👈 NEW: Share Link Function
+  const shareRoom = async () => {
+    const roomLink = `${window.location.origin}/room/${roomId}`;
+    const shareData = {
+      title: 'Join my MeetUp room',
+      text: `Join my video call on MeetUp! Room ID: ${roomId}`,
+      url: roomLink
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(roomLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('Share failed:', err);
+    }
+  };
+
+  // 👈 NEW: Copy Link Function (QR Modal ku)
+  const copyLink = async () => {
+    const roomLink = `${window.location.origin}/room/${roomId}`;
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
   };
 
   const admitGuest = (guestId) => socket.emit('host:admit', { guestId });
@@ -542,9 +574,22 @@ export default function VideoRoom() {
           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-purple-500"><Video className="h-4 w-4" /></div>
           <span className="truncate text-sm text-gray-400">Room:</span>
           <code className="truncate rounded-md bg-gray-800 px-2 py-0.5 text-sm text-purple-300">{roomId}</code>
+          
+          {/* 👈 NEW: Copy ID */}
           <button onClick={copyId} title="Copy room ID" className="rounded-md p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white">
             {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
           </button>
+          
+          {/* 👈 NEW: Share Link */}
+          <button onClick={shareRoom} title="Share room link" className="rounded-md p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white">
+            <Share2 className="h-4 w-4" />
+          </button>
+          
+          {/* 👈 NEW: QR Code */}
+          <button onClick={() => setShowQR(true)} title="Show QR code" className="rounded-md p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white">
+            <QrCode className="h-4 w-4" />
+          </button>
+
           {isHost && <span className="ml-2 flex items-center gap-1 rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs text-yellow-300"><Crown className="h-3 w-3" /> Host</span>}
           {screenShareBlocked && <span className="ml-2 rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-300">Share Blocked</span>}
           {reactionsBlocked && <span className="ml-2 flex items-center gap-1 rounded-full bg-pink-500/20 px-2 py-0.5 text-xs text-pink-300"><SmilePlus className="h-3 w-3" /> Reactions Off</span>}
@@ -575,7 +620,6 @@ export default function VideoRoom() {
               <button onClick={blockChat} className="flex items-center gap-1 rounded-lg bg-orange-800 px-3 py-1.5 text-xs hover:bg-orange-700"><MessageSquare className="h-3 w-3" /> Block Chat</button>
               <button onClick={allowChat} className="flex items-center gap-1 rounded-lg bg-green-800 px-3 py-1.5 text-xs hover:bg-green-700"><MessageSquare className="h-3 w-3" /> Allow Chat</button>
 
-              {/* 👈 NEW: Reactions controls */}
               <button onClick={blockReactions} className="flex items-center gap-1 rounded-lg bg-pink-800 px-3 py-1.5 text-xs hover:bg-pink-700"><SmilePlus className="h-3 w-3" /> Block Reactions</button>
               <button onClick={allowReactions} className="flex items-center gap-1 rounded-lg bg-green-800 px-3 py-1.5 text-xs hover:bg-green-700"><Smile className="h-3 w-3" /> Allow Reactions</button>
 
@@ -660,8 +704,6 @@ export default function VideoRoom() {
           <Btn onClick={toggleHand} tone={handRaised ? 'hand' : 'default'} label={handRaised ? 'Lower hand' : 'Raise hand'}>
             <Hand className={`h-5 w-5 ${handRaised ? 'text-black' : ''}`} />
           </Btn>
-
-          {/* 👈 NEW: Reactions button disabled for guest if blocked */}
           <Btn
             onClick={() => setShowReactionPicker((v) => !v)}
             tone={showReactionPicker ? 'on' : 'default'}
@@ -670,12 +712,59 @@ export default function VideoRoom() {
           >
             <SmilePlus className="h-5 w-5" />
           </Btn>
-
           <Btn onClick={() => setBoardOpen((v) => !v)} tone={boardOpen ? 'on' : 'default'} label="Whiteboard"><PenTool className="h-5 w-5" /></Btn>
           <Btn onClick={() => setChatOpen((v) => !v)} tone={chatOpen ? 'on' : 'default'} label="Chat"><MessageSquare className="h-5 w-5" /></Btn>
           <Btn onClick={leave} tone="danger" label="Leave room"><PhoneOff className="h-5 w-5" /></Btn>
         </div>
       </nav>
+
+      {/* 👈 NEW: QR Code Modal */}
+      {showQR && (
+        <div 
+          className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setShowQR(false)}
+        >
+          <div 
+            className="w-full max-w-sm rounded-2xl border border-gray-700 bg-gray-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Invite via QR</h3>
+              <button 
+                onClick={() => setShowQR(false)}
+                className="rounded-md p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-4 grid place-items-center rounded-xl bg-white p-4">
+              <QRCodeSVG 
+                value={`${window.location.origin}/room/${roomId}`}
+                size={220}
+                level="H"
+              />
+            </div>
+
+            <p className="mb-3 text-center text-sm text-gray-400">
+              Scan this QR code to join the room
+            </p>
+
+            <div className="mb-3 rounded-lg bg-gray-800 px-3 py-2">
+              <p className="truncate text-xs text-gray-300">
+                {`${window.location.origin}/room/${roomId}`}
+              </p>
+            </div>
+
+            <button 
+              onClick={copyLink}
+              className="w-full rounded-xl bg-purple-500 py-2.5 font-semibold text-white hover:bg-purple-400"
+            >
+              {copied ? '✓ Link Copied!' : 'Copy Link'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes floatUp {
