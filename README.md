@@ -73,6 +73,7 @@ It is a production-ready video conferencing platform that allows users to create
 - **Network quality indicator** — Signal bars per participant
 
 ### 🖥️ Collaboration
+- **Share Room Link & QR Code** — Invite participants via native share, direct link copy, or scannable QR code
 - **Screen sharing** — Share your screen with all participants
 - **Whiteboard** — Collaborative drawing canvas
 - **Real-time chat** — Text messaging within the room
@@ -475,6 +476,7 @@ Response:
    - `VITE_SERVER_URL` = your backend URL
    - `VITE_GOOGLE_CLIENT_ID` = your Google Client ID
 5. Deploy
+6. > **Important:** Add a Rewrite rule in Render (`/*` → `/index.html`) to support SPA routing for shared room links.
 
 ### Database — Turso
 
